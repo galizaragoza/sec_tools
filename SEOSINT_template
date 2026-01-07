@@ -1,8 +1,8 @@
 # Template for intelligence gathering about a target.
 # Take any template with the same format as this one and run the following commands (with 
 # capital T, in the examples it is lowercase so it is not written to the files)
-# sed -n -r -e 's/(TARGET)/<TARGET>/p' target_SEOSINT_list
-# sed -n -r -e 's/(TARGET)/<TARGET>/p' test | awk '{print "- [ ] "  $0}'
+# sed -n -r -e 's/(tARGET)/<TARGET>/p' target_SEOSINT_list
+# sed -n -r -e 's/(tARGET)/<TARGET>/p' test | awk '{print "- [ ] "  $0}'
 # Command 1 will generate a simple list with newlines between each query
 # Command 2 will generate a list that will render as a to-do list on Obsidian (idk if it works on no
 # rmal markup or other text editors)
