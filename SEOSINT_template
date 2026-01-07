@@ -1,0 +1,23 @@
+# Template for intelligence gathering about a target.
+# Take any template with the same format as this one and run the following commands
+# sed -n -r -e 's/(TARGET)/<TARGET>/p' target_SEOSINT_list
+# sed -n -r -e 's/(TARGET)/<TARGET>/p' test | awk '{print "- [ ] "  $0}'
+# Command 1 will generate a simple list with newlines between each query
+# Command 2 will generate a list that will render as a to-do list on Obsidian (idk if it works on no
+rmal markup or other text editors)
+
+site:TARGET.com
+site:TARGET.es
+site:TARGET.eu
+site:TARGET.es
+site:TARGET.fr
+...
+intext:"TARGET" site:linkedin.com
+intext:"TARGET" site:pastebin.com
+intext:"TARGET" site:codepen.io
+intext:"TARGET" site:justpaste.it
+intext:"TARGET" site:github.com
+TARGET site:github.com "BEGIN OPENSSH PRIVATE KEY"
+site
+site:TARGET.com intitle:"robots.txt"
+site:TARGET.com intitle:"sitemap"
