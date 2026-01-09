@@ -7,10 +7,19 @@
 ## El script debe ejecutarse en el directorio en el que se quieren almacenar estos archivos
 ## de la siguiente manera: sh ruta_al_script $(cat ruta_a_la_lista_de_IPs)
 
-echo "Creando directorio para meter todos los archivos\n\n\n"
-mkdir nmapper_scan
-sleep 1
-cd nmapper_scan && echo "Carpeta creada"
+echo "Crear un directorio para los resultados? [Y]es // [N]o"
+read confirmation
+
+if [$confirmation = "Y"]
+then
+    mkdir nmapper_results
+    cd nmapper_results && echo "Carpeta creada correctamente, procediendo al análisis\n\n"
+    if [$? -gt 0];
+        then
+            echo "Algo ha salido mal creando la carpeta"
+            exit
+    fi
+
 
 echo "Analizando la lista de IPs proporcionada"
 counter=1
@@ -24,8 +33,16 @@ do
         -oX nmap_"$i".xml && xsltproc nmap_"$i".xml\
         -o nmap_"$i".html 2>>errors.log
 
-        echo "Análisis de $i completo\n\n\n"
-        counter=$((counter+1))
+        if [$? -gt 0];
+            then
+                echo "Fallo en la IP $i"
+                exit
+            else
+                echo "Análisis de $i completo\n\n\n"
+                counter=$((counter+1))
+        fi
+
+
 
 done
 
