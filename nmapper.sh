@@ -14,15 +14,19 @@ cd nmapper_scan && echo "Carpeta creada"
 
 echo "Analizando la lista de IPs proporcionada"
 counter=1
-for i in $@; do
-  total=$#
-  perc=$((counter * 100 / total))
-  echo "Analizando la IP: $i\n\n $counter de $total ($perc %)"
-  nmap --top-ports 10000 --open -A -T4 -v -sT -Pn "$i" -oX nmap_"$i".xml && xsltproc nmap_"$i".xml
-  -o nmap_"$i".html 2>>errors.log
+for i in $@
+do
+        total=$#
+        perc=$((counter*100/total))
+        echo "Analizando la IP: $i\n\n\n $counter de $total ($perc %)"
 
-  echo "Análisis de $i completo\n\n\n"
-  counter=$((counter + 1))
+        nmap --top-ports 10000 --open -A -T4 -v -sT -Pn "$i"\
+        -oX nmap_"$i".xml && xsltproc nmap_"$i".xml\
+        -o nmap_"$i".html 2>>errors.log
+
+        echo "Análisis de $i completo\n\n\n"
+        counter=$((counter+1))
+
 done
 
 echo "Ya se han analizado todas la IPs de la lista\n\n\n"
@@ -30,10 +34,9 @@ echo "Ya se han analizado todas la IPs de la lista\n\n\n"
 echo "Eliminando todos los archivos .xml...\n\n\n"
 rm *.xml
 
-if [$? >0]; then
-  echo "Comprimiendo todos los archivos html"
-  tar -c -z -f parsed.tar.gz *.html
-fi
+echo "Comprimiendo todos los archivos html"
+tar -c -z -f parsed.tar.gz *.html
+
 
 echo "Compresión completa\n\n\n"
 
