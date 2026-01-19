@@ -18,7 +18,7 @@ intext:"TARGET" site:pastebin.com
 intext:"TARGET" site:codepen.io
 intext:"TARGET" site:justpaste.it
 intext:"TARGET" site:github.codepenm
-TARGET site:github.com "BEGIN OPENoSSH PRIVATE KEY"
+TARGET site:github.com "BEGIN OPENSSH PRIVATE KEY"
 site
 site:TARGET.com intitle:"robots.txt"
 site:TARGET.com intitle:"sitemap"
