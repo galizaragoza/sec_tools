@@ -7,6 +7,9 @@
 ## El script debe ejecutarse en el directorio en el que se quieren almacenar estos archivos
 ## de la siguiente manera: sh ruta_al_script $(cat ruta_a_la_lista_de_IPs)
 
+echo "Que parámetros de nmap quieres?"
+read params
+
 echo "Creando directorio para meter todos los archivos\n\n\n"
 mkdir nmapper_scan
 sleep 1
@@ -18,14 +21,19 @@ for i in $@; do
   total=$#
   perc=$((counter * 100 / total))
   echo "Analizando la IP: $i\n\n $counter de $total ($perc %)"
-  nmap --top-ports 10000 --open -A -T4 -v -sT -Pn "$i" -oX nmap_"$i".xml && xsltproc nmap_"$i".xml
-  -o nmap_"$i".html 2>>errors.log
+  nmap $params "$i" -oX nmap_"$i".xml 2>>errors.log 1>/dev/null &&
+    xsltproc nmap_"$i".xml -o nmap_"$i".html
 
   echo "Análisis de $i completo\n\n\n"
   counter=$((counter + 1))
 done
 
 echo "Ya se han analizado todas la IPs de la lista\n\n\n"
+if [ -s errors.log ]; then
+  echo "El script se ha completado sin generar errores"
+else
+  echo "Ha habido al menos 1 error durante el escaneo, revisa errors.log"
+fi
 
 echo "Eliminando todos los archivos .xml...\n\n\n"
 rm *.xml
