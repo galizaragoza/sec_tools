@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/python3
 
 # If this script is being executed, that means the last process ended successfully,
 # since it should be runned like this:
