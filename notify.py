@@ -9,7 +9,6 @@
 # create a bot and change the values in TG_token and chat_id (you can also change
 # the message). For creating the bot, download Telegram desktop and use BotFather.
 
-#!/usr/bin/python3
 import os
 import re
 import requests
