@@ -3,196 +3,131 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/jpillora/opts"
+	"golang.org/x/sync/errgroup"
 )
 
 type Config struct {
-	// Info
-	Stealth int    `opts:"short=s, help=Level of stealth wanted in the recon (1 is less) defaults to 1"`
-	IP      string `opts:"short=i, help=IP of the target (required for Nmap)"`
-	URL     string `opts:"short=u, help=Target URL"`
-	Domain  string `opts:"short=d, help=Target domain (required for dnsrecon)"`
-	// NSE
-	NSE    bool   `opts:"help=Use NSE (nmap scripting engine) the name of a script or category has to be provided"`
-	Script string `opts:"help=Specify script or category to use with NSE"`
+	IP     string `opts:"short=i, help=IP of the target (required for Nmap)"`
+	URL    string `opts:"short=u, help=Target URL"`
+	Domain string `opts:"short=d, help=Target domain (required for dnsrecon)"`
 }
 
-func getPath(tool string) (string, error) {
-	path, err := exec.LookPath(tool)
-	if err != nil {
-		return "", fmt.Errorf("[X] Error: %s is not installed", tool)
+func checkPaths(tools []string) (map[string]string, error) {
+	paths := make(map[string]string)
+	var missing []string
+
+	for _, tool := range tools {
+		path, err := exec.LookPath(tool)
+		if err != nil {
+			missing = append(missing, tool)
+			continue
+		}
+		paths[tool] = path
 	}
-	return path, nil
+
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("critical dependencies missing from system: %v", missing)
+	}
+	return paths, nil
 }
 
-func goNmap(c Config) error {
-	log.Println("Running Nmap scan...")
-	nmapPath, err := getPath("nmap")
-	if err != nil {
-		return fmt.Errorf("Cancelling Nmap scan (it is not installed)")
+func goNmap(c Config, path map[string]string) error {
+	if c.IP == "" {
+		return fmt.Errorf("[X] Error: No IP was specified, though it is required for Nmap, value of IP: %s", c.IP)
 	}
-	log.Printf("Nmap is installed, %#v\n", nmapPath)
 
-	xsltprocPath, err := getPath("xsltproc")
-	if err != nil {
-		return err
-	}
-	log.Printf("xsltproc is installed, %#v\n", xsltprocPath)
+	log.Println("Nmap scan has started")
+
+	nmapPath := path["nmap"]
 
 	reportName := "autorecon_nmapScan.xml"
-	parsedReport := "autorecon_nmapScan.html"
-	var args []string
 
-	if c.IP == "" {
-		return fmt.Errorf("[0] Panic: Nmap is being called but no IP was provided. Value of IP %#v", c.IP)
-	}
-	switch c.Stealth {
-	case 1:
-		args = []string{
-			"--top-ports", "100", "-sS", "--stats-every=10", "-T1", c.IP, "-oX", reportName,
-		}
-	case 2:
-		args = []string{
-			"--top-ports", "1000", "-sS", "-sV", "--stats-every=10", "-T2", c.IP, "-oX", reportName,
-		}
-	case 3:
-		args = []string{
-			"--top-ports", "10000", "-sT", "-sV", "-sC", "--stats-every=10", "-T3", c.IP, "-oX", reportName,
-		}
-	case 4:
-		args = []string{
-			"-p", "0-65535", "--open", "-sT", "-A", "--stats-every=10", "-T4", c.IP, "-oX", reportName,
-		}
-	case 5:
-		args = []string{
-			"-p", "0-65535", "--open", "-sT", "-A", "--stats-every=10", "-T5", c.IP, "-oX", reportName,
-		}
-	default:
-		return fmt.Errorf("[X] Error: The stealth value (1-5) provided was incorrect. Value of Stealth %#v", c.Stealth)
+	args := []string{
+		"--top-ports", "500", "--open", "-sS", "-T2", "-f", c.IP, "-oX", reportName,
 	}
 
 	cmd := exec.Command(nmapPath, args...)
-	log.Println("Scanning with nmap...")
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
-		log.Panicf("[!] Panic: running the nmap scan:%#v", err)
+		return fmt.Errorf("[X] Error: Error running the nmap scan:%w", err)
 	}
 
-	log.Println("Done scanning, parsing report...")
-
-	cmd = exec.Command(xsltprocPath, reportName, "-o", parsedReport)
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
+	log.Println("Nmap scan if finished, parsing report")
 	log.Println("Nmap scan is complete")
 
 	return nil
 }
 
-func goDNSrecon(c Config) error {
-	binPath, err := getPath("dnsrecon")
-	if err != nil {
-		return err
+func goDNSrecon(c Config, path map[string]string) error {
+	if c.Domain == "" {
+		return fmt.Errorf("[X] Error: No domain was specified, though it is required for DNSrecon, value of Domain: %s", c.Domain)
 	}
-	xsltprocPath, err := getPath("xsltproc")
-	if err != nil {
-		return err
-	}
+
+	log.Println("DNSrecon scan has started")
+
+	dnsReconPath := path["dnsrecon"]
 
 	reportName := "autorecon_DNSrecon.xml"
-	parsedReport := "autorecon_DNSrecon.html"
-
-	log.Printf("DNSrecon is installed, %#v", binPath)
-
-	if c.Domain == "" {
-		return fmt.Errorf("[0] Panic: Domain is required to use DNSrecon, specify one, current value is %#v", c.Domain)
-	}
 
 	args := []string{
-		"-d", c.Domain, "-absykez", "-x", "-t", "std",
+		"-d", c.Domain, "-absykwz", "-x", reportName, "-t", "std",
 	}
 
-	cmd := exec.Command(binPath, args...)
-	log.Println("Running DNSrecon part 1/2...")
+	cmd := exec.Command(dnsReconPath, args...)
 
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("[X] Error: Error in DNS recon with args %#v", args)
+		return fmt.Errorf("[X] Error: Error running DNS recon: %w", err)
 	}
 
-	cmd = exec.Command(xsltprocPath, reportName, "-o", parsedReport)
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
+	log.Println("DNSrecon scan is complete")
 	return nil
 }
 
-func goWhatWeb(c Config) error {
-	binPath, err := getPath("whatweb")
-	if err != nil {
-		return err
-	}
-	var args []string
-	reportName := "autorecon_WhatWeb"
-
+func goWhatWeb(c Config, path map[string]string) error {
 	if c.URL == "" {
-		return fmt.Errorf("[X] Error: URL was not specified")
+		return fmt.Errorf("[X] Error: URL was not specified, thogh it is required for WhatWeb, value of URL: %s", c.URL)
 	}
 
-	switch c.Stealth {
-	case 1:
-		args = []string{"-a", "1", "--colour=auto", "-v", c.URL}
-	case 2:
-		args = []string{"-a", "2", "--colour=auto", "-v", c.URL}
-	case 3:
-		args = []string{"-a", "3", "--colour=auto", "-v", c.URL}
-	case 4:
-		args = []string{"-a", "4", "--colour=auto", "-v", c.URL}
-	case 5:
-		args = []string{"-a", "4", "--colour=auto", "-v", c.URL}
+	log.Println("WhatWeb scan has started")
+
+	whatWebPath := path["whatweb"]
+	reportName := "autorecon_WhatWeb.xml"
+	userAgent := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+	args := []string{ // Add UserAgent value would be nice
+		"-a", "3", "-c", "--log-xml", reportName, "--user-agent", userAgent,
 	}
 
-	cmd := exec.Command(binPath, args...)
+	cmd := exec.Command(whatWebPath, args...)
 
-	log.Println("Fingerprinting web technologies...")
-
-	out, err := cmd.Output()
+	err := cmd.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("[X] Error: Something happened while scanning with WhatWeb: %w", err)
 	}
 
-	err = os.WriteFile(reportName, out, 0o444)
-	if err != nil {
-		return err
-	}
+	log.Println("WhatWeb scan is complete")
+
 	return nil
 }
 
-func goWafW00f(c Config) error {
-	binPath, err := getPath("wafw00f")
-	if err != nil {
-		return err
+func goWafW00f(c Config, path map[string]string) error {
+	if c.URL == "" {
+		return fmt.Errorf("[X] Error: URL was not specified, though it is required to use WafW00f, value of URL is: %s", c.URL)
 	}
+
+	wafW00fPath := path["wafw00f"]
 	reportName := "autorecon_wafw00f.csv"
+	log.Println("WafW00f scan has started")
 
-	if c.URL == "" {
-		return fmt.Errorf("URL value is empty, but it is required")
-	}
+	args := []string{"-a", "-o", reportName, "-f", "csv", "-l", c.URL}
 
-	args := []string{"-a", "-o", reportName, "-f", "json", "-l", c.URL}
+	cmd := exec.Command(wafW00fPath, args...)
 
-	cmd := exec.Command(binPath, args...)
-
-	log.Println("Scanning for WAF...")
-
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		return err
 	}
@@ -204,27 +139,33 @@ func main() {
 
 	opts.Parse(&c)
 
-	fmt.Printf("Current configuration: %+v\n\n", c)
+	tools := []string{"nmap", "wafw00f", "dnsrecon", "whatweb", "xsltproc"}
+	paths, err := checkPaths(tools)
+	if err != nil {
+		log.Fatalf("[X] Dependency error: %v", err)
+	}
+
+	log.Printf("All tools found in the machine(%v), proceeding with all: %v", paths, tools)
 
 	g := new(errgroup.Group)
 
 	g.Go(func() error {
-		return goNmap(c)
+		return goNmap(c, paths)
 	})
 
 	g.Go(func() error {
-		return goDNSrecon(c)
+		return goDNSrecon(c, paths)
 	})
 
 	g.Go(func() error {
-		return goWhatWeb(c)
+		return goWhatWeb(c, paths)
 	})
 
 	g.Go(func() error {
-		return goWafW00f(c)
+		return goWafW00f(c, paths)
 	})
 
 	if err := g.Wait(); err != nil {
-		panic(err)
+		return
 	}
 }
