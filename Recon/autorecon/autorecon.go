@@ -3,7 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/jpillora/opts"
 	"golang.org/x/sync/errgroup"
@@ -34,33 +38,6 @@ func checkPaths(tools []string) (map[string]string, error) {
 	return paths, nil
 }
 
-func goNmap(c Config, path map[string]string) error {
-	if c.IP == "" {
-		return fmt.Errorf("[X] Error: No IP was specified, though it is required for Nmap, value of IP: %s", c.IP)
-	}
-
-	log.Println("Nmap scan has started")
-
-	nmapPath := path["nmap"]
-
-	reportName := "autorecon_nmapScan.xml"
-
-	args := []string{
-		"--top-ports", "500", "--open", "-sS", "-T2", "-f", c.IP, "-oX", reportName,
-	}
-
-	cmd := exec.Command(nmapPath, args...)
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("[X] Error: Error running the nmap scan:%w", err)
-	}
-
-	log.Println("Nmap scan if finished, parsing report")
-	log.Println("Nmap scan is complete")
-
-	return nil
-}
-
 func goDNSrecon(c Config, path map[string]string) error {
 	if c.Domain == "" {
 		return fmt.Errorf("[X] Error: No domain was specified, though it is required for DNSrecon, value of Domain: %s", c.Domain)
@@ -84,6 +61,26 @@ func goDNSrecon(c Config, path map[string]string) error {
 	}
 
 	log.Println("DNSrecon scan is complete")
+	return nil
+}
+
+func goWafW00f(c Config, path map[string]string) error {
+	if c.URL == "" {
+		return fmt.Errorf("[X] Error: URL was not specified, though it is required to use WafW00f, value of URL is: %s", c.URL)
+	}
+
+	wafW00fPath := path["wafw00f"]
+	reportName := "autorecon_wafw00f.csv"
+	log.Println("WafW00f scan has started")
+
+	args := []string{"-a", "-o", reportName, "-f", "csv", "-l", c.URL}
+
+	cmd := exec.Command(wafW00fPath, args...)
+
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -114,22 +111,49 @@ func goWhatWeb(c Config, path map[string]string) error {
 	return nil
 }
 
-func goWafW00f(c Config, path map[string]string) error {
-	if c.URL == "" {
-		return fmt.Errorf("[X] Error: URL was not specified, though it is required to use WafW00f, value of URL is: %s", c.URL)
+func goNmap(c Config, path map[string]string) error {
+	if c.IP == "" {
+		return fmt.Errorf("[X] Error: No IP was specified, though it is required for Nmap, value of IP: %s", c.IP)
 	}
 
-	wafW00fPath := path["wafw00f"]
-	reportName := "autorecon_wafw00f.csv"
-	log.Println("WafW00f scan has started")
+	log.Println("Nmap scan has started")
 
-	args := []string{"-a", "-o", reportName, "-f", "csv", "-l", c.URL}
+	nmapPath := path["nmap"]
 
-	cmd := exec.Command(wafW00fPath, args...)
+	reportName := "autorecon_nmapScan.xml"
 
+	args := []string{
+		"--top-ports", "500", "--open", "-sS", "-T2", "-f", c.IP, "-oX", reportName,
+	}
+
+	cmd := exec.Command(nmapPath, args...)
 	err := cmd.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("[X] Error: Error running the nmap scan:%w", err)
+	}
+
+	log.Println("Nmap scan if finished, parsing report")
+	log.Println("Nmap scan is complete")
+
+	return nil
+}
+
+func parseXMLs(path map[string]string) error {
+	reports, _ := filepath.Glob("*.xml")
+	for _, report := range reports {
+		rawName := strings.TrimSuffix(report, ".xml")
+		parsedName := rawName + ".html"
+
+		cmd := exec.Command(path["xsltproc"], report, "-o", parsedName)
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("[X] Error parsing XML reports to HTML: %w", err)
+		}
+
+		err = os.Remove(report)
+		if err != nil {
+			return fmt.Errorf("[X] Error deleting XML files: %w", err)
+		}
 	}
 	return nil
 }
@@ -148,24 +172,33 @@ func main() {
 	log.Printf("All tools found in the machine(%v), proceeding with all: %v", paths, tools)
 
 	g := new(errgroup.Group)
+	var wg sync.WaitGroup
 
-	g.Go(func() error {
-		return goNmap(c, paths)
-	})
-
+	wg.Add(1)
 	g.Go(func() error {
 		return goDNSrecon(c, paths)
 	})
 
-	g.Go(func() error {
-		return goWhatWeb(c, paths)
-	})
-
+	wg.Add(1)
 	g.Go(func() error {
 		return goWafW00f(c, paths)
 	})
 
-	if err := g.Wait(); err != nil {
-		return
+	wg.Add(1)
+	g.Go(func() error {
+		return goWhatWeb(c, paths)
+	})
+
+	wg.Add(1)
+	g.Go(func() error {
+		return goNmap(c, paths)
+	})
+
+	wg.Wait()
+
+	parseXMLs(paths)
+
+	if err := g.Wait(); err == nil {
+		log.Println("Autorecon has completed succesfully")
 	}
 }
