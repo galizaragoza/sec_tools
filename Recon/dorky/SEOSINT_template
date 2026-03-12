@@ -1,0 +1,115 @@
+# Template for intelligence gathering about a target.
+# Take any template with the same format as this one and run one of the following commands (with 
+# capital T, in the examples it is lowercase so it is not written to the files)
+# sed -n -r -e 's/(tARGET)/<TARGET>/p' SEOSINT_template > simple_list_SEOSINT
+# sed -n -r -e 's/(tARGET)/<TARGET>/p' SEOSINT_template > simple_list_SEOSINT | awk '{print "- [ ] "  $0}' > to_do_SEOSINT
+# Command 1 will generate a simple list with newlines between each query
+# Command 2 will generate a simple list and a list that will render as a to-do list on Obsidian (idk if it works on no
+# rmal markup or other text editors)
+
+# GOOGLE
+# --- Reconocimiento de Infraestructura y Subdominios ---
+site:*.TARGET.com -www
+site:*.TARGET.es -www
+site:*.TARGET.eu -www
+site:*.TARGET.* intitle:"index of"
+site:TARGET.com intitle:"robots.txt" "Disallow:"
+site:TARGET.com inurl:"sitemap.xml"
+site:TARGET.com ext:xml | ext:conf | ext:cnf | ext:reg | ext:inf | ext:rdp | ext:ora | ext:ini
+
+# --- Fuga de Credenciales y Logs ---
+site:TARGET.com ext:log | ext:txt | ext:sql | ext:db | ext:bak | ext:old | ext:backup
+site:TARGET.com intext:"password" | intext:"username" | intext:"database_password"
+site:TARGET.com intext:"sql syntax near" | intext:"syntax error has occurred" | intext:"incorrect syntax near"
+site:TARGET.com "PHP Parse error" | "PHP Error" | "Exception"
+site:TARGET.com "BEGIN RSA PRIVATE KEY" | "BEGIN OPENSSH PRIVATE KEY"
+site:TARGET.com ext:env | ext:dot-env | inurl:.env
+
+# --- Paneles de Administración y Login ---
+site:TARGET.com inurl:login | inurl:admin | inurl:setup | inurl:config | inurl:manage
+site:TARGET.com intitle:"login" | intitle:"signin" | intitle:"dashboard"
+site:TARGET.com inurl:wp-admin | inurl:wp-content | inurl:administrator
+site:TARGET.com inurl:cpanel | inurl:webmail | inurl:phpmyadmin
+
+# --- Exposición en Terceros (OSINT Social/Publicaciones) ---
+intext:"TARGET" site:linkedin.com/in/ | site:linkedin.com/company/
+intext:"TARGET" site:pastebin.com | site:justpaste.it | site:ghostbin.co
+intext:"TARGET" site:codepen.io | site:jsfiddle.net | site:repl.it
+intext:"TARGET" site:stackoverflow.com | site:serverfault.com
+intext:"@TARGET.com" site:twitter.com | site:facebook.com
+
+# --- Documentos con Metadatos ---
+site:TARGET.com ext:pdf | ext:doc | ext:docx | ext:xls | ext:xlsx | ext:ppt | ext:pptx
+site:TARGET.com ext:csv | ext:ods | ext:tsv
+
+# END GOOGLE
+
+
+# SHODAN
+# --- Mapeo de Activos por Organización ---
+org:"TARGET"
+asn:ASXXXXX  # Reemplazar X con el ASN de TARGET
+hostname:TARGET.com
+
+# --- Servicios Expuestos Críticos ---
+hostname:TARGET.com port:21,22,23,445,3389
+hostname:TARGET.com product:"Apache" | product:"nginx" | product:"Microsoft IIS"
+hostname:TARGET.com "default password"
+hostname:TARGET.com http.title:"Index of /"
+
+# --- Bases de Datos y Cloud ---
+hostname:TARGET.com product:"MongoDB" | product:"Redis" | product:"Elastic"
+hostname:TARGET.com port:3306 | port:5432 | port:1521 | port:27017
+hostname:TARGET.com "X-Amz-Bucket"
+hostname:TARGET.com "X-Powered-By"
+
+# --- Certificados y Seguridad ---
+ssl:"TARGET"
+ssl.cert.subject.cn:"*.TARGET.com"
+hostname:TARGET.com vuln:CVE-2017-0144  # Ejemplo de EternalBlue
+hostname:TARGET.com http.status:200
+
+# END SHODAN
+
+
+# GITHUB
+# --- Credenciales y Tokens de API ---
+"TARGET" "api_key" | "api_secret" | "client_secret"
+"TARGET" "AWS_ACCESS_KEY_ID" | "AWS_SECRET_ACCESS_KEY"
+"TARGET" "HEROKU_API_KEY" | "STRIPE_SECRET_KEY"
+"TARGET" "password" | "pass" | "pwd" | "root"
+
+# --- Archivos de Configuración ---
+org:TARGET filename:.env
+org:TARGET filename:config.json | filename:settings.py | filename:web.config
+org:TARGET extension:pem | extension:ppk | extension:key
+org:TARGET filename:docker-compose.yml
+
+# --- Rutas Locales y SSH ---
+"TARGET" "path/to/home"
+"TARGET" filename:id_rsa | filename:id_dsa
+"TARGET" filename:known_hosts | filename:authorized_keys
+"TARGET" ".bash_history" | ".zsh_history"
+
+# END GITHUB
+
+
+# BING
+# --- Descubrimiento de Co-Hosting e IP ---
+ip:X.X.X.X  # Reemplazar con la IP resuelta de TARGET
+site:TARGET.com contains:pdf
+site:TARGET.com contains:docx
+site:TARGET.com contains:xlsx
+
+# --- Feeds y Estructura ---
+site:TARGET.com feed:rss | feed:atom
+site:TARGET.com hasfeed:xml
+instreamset:(url title):admin site:TARGET.com
+instreamset:(url title):config site:TARGET.com
+
+# --- Regional y Localización ---
+site:TARGET.* loc:ES
+site:TARGET.* loc:US
+site:TARGET.* language:en
+
+# END BING
