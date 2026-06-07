@@ -39,7 +39,7 @@ func waitForState(vm *virtualbox.Machine, target string, pollInterval time.Durat
 // getIP attempts fast retrieval via GuestProperty, falls back to GuestControl
 func getIP(vm *virtualbox.Machine) string {
 	for i := range 6 {
-		fmt.Printf("Attempt %d/%d (1min total)\n", i, 6)
+		fmt.Printf("Attempt %d of %d (1min total)\n", i, 6)
 		cmd := exec.Command("vboxmanage", "guestcontrol", vm.UUID, "run",
 			"--username", "kali", "--password", "kali",
 			"--exe", "/usr/bin/ip", "addr", "show", "eth0")
@@ -52,19 +52,10 @@ func getIP(vm *virtualbox.Machine) string {
 	return ""
 }
 
-func runVM(vm *virtualbox.Machine, poll time.Duration) {
+func runVM(vm *virtualbox.Machine, poll time.Duration) (machine *virtualbox.Machine) {
 	vm.Start()
 	waitForState(vm, "running", poll)
-
-	fmt.Println("Retrieving machine IP...")
-	time.Sleep(30 * time.Second)
-	ip := getIP(vm)
-	if ip != "" {
-		highlight := color.New(color.BgWhite, color.FgHiBlack, color.Bold).SprintFunc()
-		fmt.Printf("IP retrieved: %s\n", highlight(ip))
-	} else {
-		fmt.Printf("Could not retrieve IP for %s\n", vm.Name)
-	}
+	return vm
 }
 
 func stopVM(vm *virtualbox.Machine, poll time.Duration) {
@@ -102,7 +93,17 @@ func main() {
 
 	if c.Kali || c.KaliName != "" {
 		if k := findVM(machines, c.KaliName, 0); k != nil {
-			runVM(k, poll)
+			vm := runVM(k, poll)
+
+			fmt.Println("Retrieving machine IP...")
+			time.Sleep(10 * time.Second)
+			ip := getIP(vm)
+			if ip != "" {
+				highlight := color.New(color.BgWhite, color.FgHiBlack, color.Bold).SprintFunc()
+				fmt.Printf("IP retrieved: %s\n", highlight(ip))
+			} else {
+				fmt.Printf("Could not retrieve IP for %s\n", vm.Name)
+			}
 		}
 	}
 
