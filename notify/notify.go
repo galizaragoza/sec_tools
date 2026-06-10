@@ -5,9 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
-
-	"github.com/gen2brain/beeep"
 )
 
 var (
@@ -34,15 +33,15 @@ func tgNoti(msg string) (err error) {
 }
 
 func osNoti(msg string) {
-	err := beeep.Alert("Notify alert", msg, "bell.png")
+	cmd := exec.Command("/usr/bin/notify-send", "-a", "Notify", "-u", "normal", "-t", "2000", "-n", "bell.png",
+		msg)
+	err := cmd.Run()
 	if err != nil {
-		fmt.Errorf("error in osNoti(): %w", err)
+		fmt.Errorf("error running os notification command on osNoti(): %w", err)
 	}
 }
 
 func main() {
-	beeep.AppName = "Notify"
-
 	if len(os.Args) >= 2 {
 		msg = os.Args[1:]
 	} else {
